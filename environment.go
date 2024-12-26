@@ -3,7 +3,6 @@ package flargs
 import (
 	"bytes"
 	"io"
-	"io/fs"
 	"math/rand"
 	"os"
 	"strings"
@@ -46,6 +45,7 @@ func (e Environment) GetInput() []byte {
 // NewCLIEnvironment produces an Environment suitable for a CLI.
 // It's a helper function with sane defaults.
 func NewCLIEnvironment(baseDir string) *Environment {
+
 	envAsMap := func(envs []string) map[string]string {
 		m := make(map[string]string)
 		i := 0
@@ -55,7 +55,6 @@ func NewCLIEnvironment(baseDir string) *Environment {
 		}
 		return m
 	}
-
 	//	import parent env vars
 	vars := envAsMap(os.Environ())
 	vars["FLARGS_EXE_ENVIRONMENT"] = "cli"
@@ -75,15 +74,15 @@ func NewCLIEnvironment(baseDir string) *Environment {
 }
 
 // NewTestingEnvironment produces an [Environment] suitable for testing.
-// Pass in a "randomnessProvider" that offers a level of determinism that works for you.
+// Pass in a "randSource" that offers a level of determinism that works for you.
 // For good ole fashioned regular randomness, pass in [rand.Reader]
 // If your program doesn't use randomness, just pass in nil.
-func NewTestingEnvironment(randomnessProvider rand.Source) *Environment {
+func NewTestingEnvironment(randSource rand.Source) *Environment {
 	env := Environment{
 		InputStream:  new(bytes.Buffer),
 		OutputStream: new(bytes.Buffer),
 		ErrorStream:  new(bytes.Buffer),
-		Randomness:   randomnessProvider,
+		Randomness:   randSource,
 		Filesystem:   afero.NewMemMapFs(),
 		Variables: map[string]string{
 			"FLARGS_EXE_ENVIRONMENT": "testing",
@@ -93,6 +92,7 @@ func NewTestingEnvironment(randomnessProvider rand.Source) *Environment {
 	return &env
 }
 
+// a NullDevice satisfies necesary interfaces but drops all information on the floor
 type NullDevice struct {
 	io.Writer
 	afero.Fs
@@ -100,33 +100,6 @@ type NullDevice struct {
 
 func (b NullDevice) Read(_ []byte) (int, error) {
 	return 0, nil
-}
-func (b NullDevice) Open(_ string) (fs.File, error) {
-	return nil, nil
-}
-
-func (b NullDevice) ReadDir(_ string) ([]fs.DirEntry, error) {
-	return nil, nil
-}
-
-func (b NullDevice) ReadFile(_ string) ([]byte, error) {
-	return nil, nil
-}
-
-func (b NullDevice) Stat(_ string) (fs.FileInfo, error) {
-	return nil, nil
-}
-
-func (b NullDevice) OpenFile(name string, flag int, perm fs.FileMode) (afero.File, error) {
-	return nil, nil
-}
-
-func (b NullDevice) Remove(_ string) error {
-	return nil
-}
-
-func (b NullDevice) WriteFile(_ string, _ []byte, _ fs.FileMode) error {
-	return nil
 }
 
 func NewNullEnvironment() *Environment {
