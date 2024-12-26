@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	rfs "github.com/sean9999/go-real-fs"
+	"github.com/spf13/afero"
 )
 
 // Enviroment is an execution environment for a Command.
@@ -21,7 +21,7 @@ type Environment struct {
 	OutputStream io.ReadWriter
 	ErrorStream  io.ReadWriter
 	Randomness   rand.Source
-	Filesystem   rfs.WritableFs
+	Filesystem   afero.Fs
 	Variables    map[string]string
 	Arguments    []string
 }
@@ -60,7 +60,7 @@ func NewCLIEnvironment(baseDir string) *Environment {
 	vars := envAsMap(os.Environ())
 	vars["FLARGS_EXE_ENVIRONMENT"] = "cli"
 
-	realFs := rfs.NewWritable()
+	realFs := afero.NewOsFs()
 
 	env := Environment{
 		InputStream:  os.Stdin,
@@ -84,7 +84,7 @@ func NewTestingEnvironment(randomnessProvider rand.Source) *Environment {
 		OutputStream: new(bytes.Buffer),
 		ErrorStream:  new(bytes.Buffer),
 		Randomness:   randomnessProvider,
-		Filesystem:   rfs.NewWritable(),
+		Filesystem:   afero.NewMemMapFs(),
 		Variables: map[string]string{
 			"FLARGS_EXE_ENVIRONMENT": "testing",
 		},
@@ -95,6 +95,7 @@ func NewTestingEnvironment(randomnessProvider rand.Source) *Environment {
 
 type NullDevice struct {
 	io.Writer
+	afero.Fs
 }
 
 func (b NullDevice) Read(_ []byte) (int, error) {
@@ -116,7 +117,7 @@ func (b NullDevice) Stat(_ string) (fs.FileInfo, error) {
 	return nil, nil
 }
 
-func (b NullDevice) OpenFile(name string, flag int, perm fs.FileMode) (rfs.WritableFile, error) {
+func (b NullDevice) OpenFile(name string, flag int, perm fs.FileMode) (afero.File, error) {
 	return nil, nil
 }
 
@@ -130,10 +131,10 @@ func (b NullDevice) WriteFile(_ string, _ []byte, _ fs.FileMode) error {
 
 func NewNullEnvironment() *Environment {
 	e := Environment{
-		InputStream:  NullDevice{io.Discard},
-		OutputStream: NullDevice{io.Discard},
-		ErrorStream:  NullDevice{io.Discard},
-		Filesystem:   NullDevice{},
+		InputStream:  NullDevice{io.Discard, afero.NewMemMapFs()},
+		OutputStream: NullDevice{io.Discard, afero.NewMemMapFs()},
+		ErrorStream:  NullDevice{io.Discard, afero.NewMemMapFs()},
+		Filesystem:   afero.NewMemMapFs(),
 		Variables:    map[string]string{},
 		Arguments:    []string{},
 	}
